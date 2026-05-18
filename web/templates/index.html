@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Search AI Agent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .state-selector {
+            margin-bottom: 30px;
+        }
+        
+        .state-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .state-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-card h3 {
+            color: #667eea;
+            font-size: 2em;
+        }
+        
+        .stat-card p {
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .jobs-container {
+            margin-top: 30px;
+        }
+        
+        .job-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .job-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .job-card.spam {
+            border-left-color: #e74c3c;
+            background: #fef5f5;
+        }
+        
+        .job-card h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .job-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        .job-info-item {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .job-info-item strong {
+            color: #333;
+        }
+        
+        .spam-warning {
+            background: #e74c3c;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+        
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Job Search AI Agent</h1>
+            <p>Intelligent Job Search for India</p>
+        </header>
+        
+        <div class="content">
+            <div class="state-selector">
+                <label for="state-select">Select Your State:</label>
+                <select id="state-select">
+                    <option value="">-- Choose a state --</option>
+                </select>
+            </div>
+            
+            <button class="btn" onclick="searchJobs()">Search Jobs</button>
+            
+            <div id="message" style="margin-top: 20px;"></div>
+            
+            <div id="stats" class="stats" style="display: none;"></div>
+            
+            <div id="jobs" class="jobs-container" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Load states on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStates();
+        });
+        
+        function loadStates() {
+            fetch('/api/states')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('state-select');
+                        data.states.forEach(state => {
+                            const option = document.createElement('option');
+                            option.value = state;
+                            option.textContent = state;
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        function searchJobs() {
+            const state = document.getElementById('state-select').value;
+            if (!state) {
+                showMessage('Please select a state', 'error');
+                return;
+            }
+            
+            document.getElementById('jobs').innerHTML = '<div class="loading">Loading jobs</div>';
+            document.getElementById('jobs').style.display = 'block';
+            document.getElementById('stats').style.display = 'none';
+            
+            fetch(`/api/jobs?state=${encodeURIComponent(state)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayStats(data);
+                        displayJobs(data.jobs);
+                    } else {
+                        showMessage(data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showMessage('Error fetching jobs', 'error');
+                });
+        }
+        
+        function displayStats(data) {
+            const statsDiv = document.getElementById('stats');
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <h3>${data.total_jobs}</h3>
+                    <p>Total Jobs</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${data.legitimate_jobs}</h3>
+                    <p>Legitimate Jobs</p>
+                </div>
+                <div class="stat-card">
+                    <h3>${data.spam_jobs}</h3>
+                    <p>Suspicious/Spam</p>
+                </div>
+            `;
+            statsDiv.style.display = 'grid';
+        }
+        
+        function displayJobs(jobs) {
+            const jobsDiv = document.getElementById('jobs');
+            
+            if (jobs.length === 0) {
+                jobsDiv.innerHTML = '<p>No jobs found for this state.</p>';
+                return;
+            }
+            
+            let html = '<h2>Job Listings</h2>';
+            
+            // Legitimate jobs
+            const legitimateJobs = jobs.filter(j => !j.is_spam);
+            const spamJobs = jobs.filter(j => j.is_spam);
+            
+            if (legitimateJobs.length > 0) {
+                html += '<h3 style="color: #27ae60; margin-top: 20px;">✓ Legitimate Jobs</h3>';
+                legitimateJobs.forEach(job => {
+                    html += `
+                        <div class="job-card">
+                            <h4>${job.company} - ${job.title}</h4>
+                            <div class="job-info">
+                                <div class="job-info-item"><strong>Location:</strong> ${job.location}</div>
+                                <div class="job-info-item"><strong>Experience:</strong> ${job.experience}</div>
+                                <div class="job-info-item"><strong>Salary:</strong> ${job.salary}</div>
+                                <div class="job-info-item"><strong>Type:</strong> ${job.job_type}</div>
+                                <div class="job-info-item"><strong>Source:</strong> ${job.source}</div>
+                            </div>
+                            <p>${job.description.substring(0, 150)}...</p>
+                            ${job.url ? `<a href="${job.url}" target="_blank" class="btn" style="display: inline-block; margin-top: 10px;">View Job</a>` : ''}
+                        </div>
+                    `;
+                });
+            }
+            
+            if (spamJobs.length > 0) {
+                html += '<h3 style="color: #e74c3c; margin-top: 30px;">⚠️  Suspicious/Spam Jobs</h3>';
+                spamJobs.forEach(job => {
+                    html += `
+                        <div class="job-card spam">
+                            <div class="spam-warning">⚠️ This posting appears suspicious (Score: ${(job.spam_score * 100).toFixed(0)}%)</div>
+                            <h4>${job.company} - ${job.title}</h4>
+                            <div class="job-info">
+                                <div class="job-info-item"><strong>Location:</strong> ${job.location}</div>
+                                <div class="job-info-item"><strong>Salary:</strong> ${job.salary}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            jobsDiv.innerHTML = html;
+        }
+        
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
